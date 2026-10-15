@@ -72,17 +72,22 @@ app.use(
 app.use(express.json())
 app.use(cookieParser())
 
-// Root / health-check route
-app.get('/', (req, res) => {
+// Root / health-check route (accessible at / and /api)
+app.get(['/', '/api'], (req, res) => {
     res.json({ message: 'ShopKart Authentication API is running', port: PORT })
 })
 
-// Routes
-app.use('/customers', customerRoutes)
-app.use('/products', productRoutes)
-app.use('/wishlist', wishlistRoutes)
-app.use('/cart', cartRoutes)
-app.use('/orders', orderRoutes)
+// Routes (supporting both direct and /api prefixes)
+const registerRoutes = (prefix = '') => {
+    app.use(`${prefix}/customers`, customerRoutes)
+    app.use(`${prefix}/products`, productRoutes)
+    app.use(`${prefix}/wishlist`, wishlistRoutes)
+    app.use(`${prefix}/cart`, cartRoutes)
+    app.use(`${prefix}/orders`, orderRoutes)
+}
+
+registerRoutes('')
+registerRoutes('/api')
 
 // Start Server (only when not running inside Vercel serverless functions)
 if (process.env.VERCEL !== '1') {
