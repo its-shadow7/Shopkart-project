@@ -15,19 +15,31 @@ dotenv.config()
 const app = express()
 const PORT = process.env.PORT || 8010
 
-// Connect to MongoDB Atlas
-if (process.env.dbUrl) {
-    mongoose
-        .connect(process.env.dbUrl)
-        .then(() => {
-            console.log('MongoDB Connected successfully')
-        })
-        .catch((err) => {
-            console.error('MongoDB Connection Error:', err.message)
-        })
-} else {
-    console.warn('Warning: dbUrl is not defined in .env. Please provide your MongoDB Atlas connection string.')
+// Connect to MongoDB Atlas (optimized for both local server and Vercel serverless)
+export const connectDB = async () => {
+    if (mongoose.connection.readyState >= 1) {
+        return
+    }
+    if (!process.env.dbUrl) {
+        console.warn('Warning: dbUrl is not defined in environment variables. Please provide your MongoDB Atlas connection string.')
+        return
+    }
+    try {
+        await mongoose.connect(process.env.dbUrl)
+        console.log('MongoDB Connected successfully')
+    } catch (err) {
+        console.error('MongoDB Connection Error:', err.message)
+    }
 }
+
+// Initial connection
+connectDB()
+
+// Serverless connection assurance middleware
+app.use(async (req, res, next) => {
+    await connectDB()
+    next()
+})
 
 // Middlewares
 const allowedOrigins = [
@@ -72,7 +84,11 @@ app.use('/wishlist', wishlistRoutes)
 app.use('/cart', cartRoutes)
 app.use('/orders', orderRoutes)
 
-// Start Server
-app.listen(PORT, () => {
-    console.log(`Server started on port ${PORT}`)
-})
+// Start Server (only when not running inside Vercel serverless functions)
+if (process.env.VERCEL !== '1') {
+    app.listen(PORT, () => {
+        console.log(`Server started on port ${PORT}`)
+    })
+}
+
+export default app
